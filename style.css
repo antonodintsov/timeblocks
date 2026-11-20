@@ -1,9 +1,5 @@
 /* ---------- База ---------- */
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
+* { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
   --text: #f2f2ff;
@@ -147,7 +143,6 @@ h1 {
   50%      { filter: drop-shadow(0 0 16px rgba(236, 72, 153, 0.55)); }
 }
 
-/* Овертайм — красное кольцо */
 .timer-circle.overtime .timer-ring {
   stroke: url(#ringOverGradient);
   animation: overPulse 1s ease-in-out infinite;
@@ -314,7 +309,6 @@ button.danger:hover:not(:disabled) {
   }
 }
 
-/* Тонкая линия прогресса у активного блока */
 .block-item.active::after {
   content: '';
   position: absolute;
@@ -338,6 +332,11 @@ button.danger:hover:not(:disabled) {
 .block-item.done {
   opacity: 0.42;
   filter: saturate(0.5);
+  cursor: default;
+}
+.block-item.done:hover {
+  background: var(--glass);
+  border-color: var(--border);
 }
 
 .block-item .name {
