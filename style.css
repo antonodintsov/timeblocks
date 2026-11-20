@@ -12,6 +12,7 @@
   --cyan: #06b6d4;
   --grad: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
   --radius: 18px;
+  --pulse-duration: 3s;
 }
 
 html, body { min-height: 100vh; }
@@ -129,20 +130,22 @@ h1 {
   stroke: url(#ringGradient);
   stroke-width: 14;
   stroke-linecap: round;
-  stroke-dasharray: 596.9;
+  stroke-dasharray: 596.9;      /* 2π·95 */
   stroke-dashoffset: 0;
   transition: stroke-dashoffset 0.45s linear, stroke 0.25s ease;
   filter: drop-shadow(0 0 10px rgba(139, 92, 246, 0.4));
 }
 
+/* Синхронный пульс кольца с активным блоком */
 .timer-circle.running .timer-ring {
-  animation: ringPulse 3s ease-in-out infinite;
+  animation: syncPulseRing var(--pulse-duration) ease-in-out infinite;
 }
-@keyframes ringPulse {
+@keyframes syncPulseRing {
   0%, 100% { filter: drop-shadow(0 0 10px rgba(139, 92, 246, 0.4)); }
-  50%      { filter: drop-shadow(0 0 16px rgba(236, 72, 153, 0.55)); }
+  50%      { filter: drop-shadow(0 0 18px rgba(236, 72, 153, 0.6)); }
 }
 
+/* Овертайм */
 .timer-circle.overtime .timer-ring {
   stroke: url(#ringOverGradient);
   animation: overPulse 1s ease-in-out infinite;
@@ -189,7 +192,7 @@ h1 {
   white-space: nowrap;
 }
 
-/* ---------- Кнопки ---------- */
+/* ---------- Кнопки (общие) ---------- */
 button {
   padding: 0.8rem 1.3rem;
   border: 1px solid var(--border);
@@ -240,15 +243,29 @@ button.danger:hover:not(:disabled) {
   box-shadow: 0 6px 20px rgba(236, 72, 153, 0.3);
 }
 
-/* ---------- Управление ---------- */
+/* ---------- Круглые кнопки-иконки ---------- */
 .controls {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.55rem;
+  justify-content: center;
+  gap: 0.75rem;
 }
-.controls button {
-  flex: 1 1 auto;
-  min-width: 110px;
+
+.icon-btn {
+  width: 60px;
+  height: 60px;
+  min-width: 60px;
+  padding: 0;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+.icon-btn svg {
+  width: 24px;
+  height: 24px;
+  fill: currentColor;
+  pointer-events: none;
 }
 
 /* ---------- Список блоков ---------- */
@@ -293,22 +310,31 @@ button.danger:hover:not(:disabled) {
   border-color: rgba(255, 255, 255, 0.16);
 }
 
+/* Текущий блок — статичная подсветка */
 .block-item.active {
   background: rgba(139, 92, 246, 0.12);
   border-color: rgba(139, 92, 246, 0.5);
-  animation: activeBreath 4.5s ease-in-out infinite;
+  box-shadow:
+    0 0 0 1px rgba(139, 92, 246, 0.22),
+    0 6px 20px rgba(139, 92, 246, 0.12);
 }
-@keyframes activeBreath {
+
+/* Синхронный пульс с кольцом — только когда таймер идёт */
+.block-item.active.is-running {
+  animation: syncPulseBlock var(--pulse-duration) ease-in-out infinite;
+}
+@keyframes syncPulseBlock {
   0%, 100% {
     box-shadow: 0 0 0 1px rgba(139, 92, 246, 0.22),
                 0 6px 20px rgba(139, 92, 246, 0.12);
   }
   50% {
-    box-shadow: 0 0 0 1px rgba(139, 92, 246, 0.36),
-                0 6px 24px rgba(139, 92, 246, 0.2);
+    box-shadow: 0 0 0 1px rgba(236, 72, 153, 0.35),
+                0 6px 24px rgba(236, 72, 153, 0.22);
   }
 }
 
+/* Тонкая линия прогресса у активного блока */
 .block-item.active::after {
   content: '';
   position: absolute;
@@ -321,6 +347,16 @@ button.danger:hover:not(:disabled) {
   transition: width 0.5s linear;
 }
 
+/* Drag & drop */
+.blocks-list.can-drag .block-item:not(.done) { cursor: grab; }
+.blocks-list.can-drag .block-item:not(.done):active { cursor: grabbing; }
+.block-item.dragging { opacity: 0.35; }
+.block-item.drag-over {
+  border-color: rgba(139, 92, 246, 0.7);
+  background: rgba(139, 92, 246, 0.1);
+}
+
+/* Мягкое появление нового блока */
 .block-item.just-added {
   animation: fadeSlideIn 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.1);
 }
@@ -329,6 +365,38 @@ button.danger:hover:not(:disabled) {
   to   { opacity: 1; transform: translateY(0); }
 }
 
+/* Анимация перехода в завершённые */
+.block-item.just-completed {
+  animation: completeToDone 1s cubic-bezier(0.25, 0.9, 0.3, 1) forwards;
+}
+@keyframes completeToDone {
+  0% {
+    opacity: 1;
+    background: rgba(139, 92, 246, 0.16);
+    border-color: rgba(139, 92, 246, 0.55);
+    box-shadow: 0 0 0 1px rgba(139, 92, 246, 0.28),
+                0 6px 22px rgba(139, 92, 246, 0.18);
+    filter: saturate(1);
+    transform: scale(1.015);
+  }
+  40% {
+    background: rgba(236, 72, 153, 0.14);
+    border-color: rgba(236, 72, 153, 0.45);
+    box-shadow: 0 0 0 1px rgba(236, 72, 153, 0.22),
+                0 4px 16px rgba(236, 72, 153, 0.14);
+    transform: scale(1.005);
+  }
+  100% {
+    opacity: 0.42;
+    background: var(--glass);
+    border-color: var(--border);
+    box-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
+    filter: saturate(0.5);
+    transform: scale(1);
+  }
+}
+
+/* Завершённые блоки */
 .block-item.done {
   opacity: 0.42;
   filter: saturate(0.5);
@@ -370,11 +438,16 @@ button.danger:hover:not(:disabled) {
   border-radius: 10px;
   min-width: 0;
   cursor: pointer;
+  transition: opacity 0.2s ease, color 0.2s ease, background 0.2s ease;
 }
 .block-item .remove-btn:hover:not(:disabled) {
   color: #f9a8d4;
   background: rgba(236, 72, 153, 0.15);
   transform: none;
+}
+.block-item .remove-btn:disabled {
+  opacity: 0.2;
+  cursor: not-allowed;
 }
 
 /* ---------- Форма добавления ---------- */
@@ -409,15 +482,17 @@ button.danger:hover:not(:disabled) {
 #blockDuration::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 #blockDuration { -moz-appearance: textfield; }
 
-/* ---------- Настройки / экспорт ---------- */
+/* ---------- Настройки: только горизонтальная линия ---------- */
 .settings-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  padding-top: 0.6rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--border);
   flex-wrap: wrap;
 }
+
 .setting {
   display: flex;
   align-items: center;
@@ -455,7 +530,9 @@ button.danger:hover:not(:disabled) {
   h1 { font-size: 1.4rem; }
   #timerDisplay { font-size: 2.6rem; }
   .status { padding: 1.5rem 1rem; }
-  .controls button { min-width: 0; padding: 0.75rem 1rem; font-size: 0.85rem; }
+  .controls { gap: 0.5rem; }
+  .icon-btn { width: 52px; height: 52px; min-width: 52px; }
+  .icon-btn svg { width: 22px; height: 22px; }
   .add-block { flex-wrap: wrap; }
   .add-block input,
   .add-block button { flex: 1 1 100%; }

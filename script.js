@@ -4,11 +4,16 @@
   const RING_CIRCUMFERENCE = 2 * Math.PI * 95;
   const STORAGE_KEY = 'timeblocks_state_v3';
 
+  const ICONS = {
+    play:  '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>',
+    pause: '<svg viewBox="0 0 24 24"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>',
+  };
+
   // ---- Состояние ----
-  let activeBlocks = [];      // [current, next, ...]
-  let completedBlocks = [];   // [..., lastCompleted]
+  let activeBlocks = [];
+  let completedBlocks = [];
   let settings = { overtimeSeconds: 30 };
-  let nextId = 1;             // для стабильных id
+  let nextId = 1;
 
   let remainingSec = 0;
   let overtimeRemainingSec = 0;
@@ -16,22 +21,23 @@
   let timerId = null;
   let isPaused = false;
   let isRunning = false;
+  let wasStarted = false;         // NEW: была ли сессия запущена
+  let draggedIndex = -1;
+  let currentBtnState = null;     // кеш состояния кнопки-переключателя
+
+  const justCompletedIds = new Set();
 
   // ---- DOM ----
   const $ = (id) => document.getElementById(id);
-
   const blocksListEl = $('blocksList');
   const blockNameInput = $('blockName');
   const blockDurationInput = $('blockDuration');
   const addBtn = $('addBtn');
   const overtimeInput = $('overtimeInput');
   const exportBtn = $('exportBtn');
-
   const startBtn = $('startBtn');
-  const pauseBtn = $('pauseBtn');
   const skipBtn = $('skipBtn');
   const resetBtn = $('resetBtn');
-
   const currentBlockNameEl = $('currentBlockName');
   const timerDisplayEl = $('timerDisplay');
   const timerRingEl = $('timerRing');
@@ -39,26 +45,17 @@
 
   const required = {
     blocksListEl, blockNameInput, blockDurationInput, addBtn,
-    startBtn, pauseBtn, skipBtn, resetBtn,
+    startBtn, skipBtn, resetBtn,
     currentBlockNameEl, timerDisplayEl, timerRingEl, timerCircleEl,
   };
   for (const [name, el] of Object.entries(required)) {
-    if (!el) {
-      console.error(`[timeblocks] Не найден DOM-элемент: ${name}.`);
-      return;
-    }
+    if (!el) { console.error(`[chronoblock] Не найден DOM: ${name}`); return; }
   }
 
-  // ---- Фабрика блока ----
+  // ---- Фабрика / нормализация ----
   function makeBlock(name, durationMin) {
-    return {
-      id: nextId++,
-      name,
-      durationMin,
-      durationSec: durationMin * 60,
-    };
+    return { id: nextId++, name, durationMin, durationSec: durationMin * 60 };
   }
-
   function normalizeBlocks(arr) {
     if (!Array.isArray(arr)) return [];
     return arr
@@ -75,14 +72,10 @@
   function saveState() {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
-        activeBlocks,
-        completedBlocks,
-        settings,
-        nextId,
+        activeBlocks, completedBlocks, settings, nextId, wasStarted,
       }));
     } catch (_) {}
   }
-
   function loadState() {
     let loaded = false;
     try {
@@ -104,9 +97,11 @@
         if (parsed && Number.isFinite(parsed.nextId) && parsed.nextId > nextId) {
           nextId = parsed.nextId;
         }
+        if (parsed && typeof parsed.wasStarted === 'boolean') {
+          wasStarted = parsed.wasStarted;
+        }
       }
     } catch (_) {}
-
     if (!loaded) {
       const opts = (typeof window !== 'undefined' && window.APP_OPTIONS) || null;
       if (opts) {
@@ -117,16 +112,13 @@
         completedBlocks = [];
       }
     }
-
     if (overtimeInput) overtimeInput.value = settings.overtimeSeconds;
   }
 
   // ---- Утилиты ----
   function formatTime(sec) {
     const s = Math.max(0, Math.floor(Math.abs(sec)));
-    const m = Math.floor(s / 60);
-    const r = s % 60;
-    return `${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}`;
+    return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
   }
 
   // ---- Рендер списка ----
@@ -145,9 +137,9 @@
     const removeBtn = document.createElement('button');
     removeBtn.className = 'remove-btn';
     removeBtn.textContent = '✕';
-    removeBtn.title = 'Удалить блок';
     removeBtn.addEventListener('click', (e) => {
       e.stopPropagation();
+      if (isRunning) return;
       if (type === 'active') removeActiveBlock(idx);
       else removeCompletedBlock(idx);
     });
@@ -156,6 +148,13 @@
 
     if (type === 'active') {
       item.addEventListener('click', () => switchToActiveBlock(idx));
+      item.dataset.idx = idx;
+      item.draggable = true;
+      item.addEventListener('dragstart', onDragStart);
+      item.addEventListener('dragend', onDragEnd);
+      item.addEventListener('dragover', onDragOver);
+      item.addEventListener('dragleave', onDragLeave);
+      item.addEventListener('drop', onDrop);
     } else {
       item.classList.add('done');
     }
@@ -166,21 +165,27 @@
   function renderBlocks(newBlockRef = null) {
     blocksListEl.innerHTML = '';
 
-    activeBlocks.forEach((block, idx) => {
-      const item = createBlockItem(block, idx, 'active');
+    activeBlocks.forEach((block) => {
+      const item = createBlockItem(block, activeBlocks.indexOf(block), 'active');
       if (block === newBlockRef) {
         item.classList.add('just-added');
-        item.addEventListener(
-          'animationend',
-          () => item.classList.remove('just-added'),
-          { once: true }
-        );
+        item.addEventListener('animationend',
+          () => item.classList.remove('just-added'), { once: true });
       }
       blocksListEl.appendChild(item);
     });
 
     completedBlocks.forEach((block, idx) => {
-      blocksListEl.appendChild(createBlockItem(block, idx, 'completed'));
+      const item = createBlockItem(block, idx, 'completed');
+      if (justCompletedIds.has(block.id)) {
+        const id = block.id;
+        item.classList.add('just-completed');
+        item.addEventListener('animationend', () => {
+          item.classList.remove('just-completed');
+          justCompletedIds.delete(id);
+        }, { once: true });
+      }
+      blocksListEl.appendChild(item);
     });
 
     updateBlocksState();
@@ -193,19 +198,24 @@
       const isCurrent = idx === 0;
 
       item.classList.toggle('active', isCurrent);
+      item.classList.toggle('is-running', isCurrent && isRunning && !isPaused);
 
       if (isCurrent) {
         const block = activeBlocks[0];
         let progress;
         if (isOvertime) progress = 100;
         else progress = block.durationSec > 0
-          ? ((1 - remainingSec / block.durationSec) * 100).toFixed(2)
-          : 0;
+          ? ((1 - remainingSec / block.durationSec) * 100).toFixed(2) : 0;
         item.style.setProperty('--progress', `${progress}%`);
       } else {
         item.style.removeProperty('--progress');
       }
     }
+
+    blocksListEl.querySelectorAll('.remove-btn').forEach(btn => {
+      btn.disabled = isRunning;
+      btn.title = isRunning ? 'Нельзя удалить во время работы' : 'Удалить блок';
+    });
   }
 
   // ---- Таймер-визуализация ----
@@ -227,7 +237,6 @@
     }
 
     const block = activeBlocks[0];
-
     if (isOvertime) {
       const elapsed = settings.overtimeSeconds - overtimeRemainingSec;
       currentBlockNameEl.textContent = `⚠ ${block.name}`;
@@ -241,23 +250,89 @@
     }
   }
 
+  // ---- Toggle-кнопка ----
+  function updateStartBtnIcon() {
+    const isPauseState = isRunning && !isPaused;
+    const label = isPauseState ? 'Пауза' : (wasStarted ? 'Продолжить' : 'Старт');
+    const stateKey = isPauseState + '|' + label;
+    if (stateKey === currentBtnState) return;
+    currentBtnState = stateKey;
+
+    startBtn.innerHTML = isPauseState ? ICONS.pause : ICONS.play;
+    startBtn.title = label;
+    startBtn.setAttribute('aria-label', label);
+  }
+
   function updateControls() {
     const hasActive = activeBlocks.length > 0;
 
-    startBtn.disabled = !hasActive || isRunning;
-    pauseBtn.disabled = !isRunning;
-    skipBtn.disabled = !hasActive;
-    resetBtn.disabled = !hasActive && completedBlocks.length === 0;
+    // Toggle: активна, если есть что запускать/чем управлять
+    startBtn.disabled = !hasActive;
+
+    // Следующий: только после старта и пока есть активные
+    skipBtn.disabled = !wasStarted || !hasActive;
+
+    // Рестарт: только после старта
+    resetBtn.disabled = !wasStarted;
 
     timerCircleEl.classList.toggle('running', isRunning && !isPaused && !isOvertime);
+    blocksListEl.classList.toggle('can-drag', !wasStarted && activeBlocks.length > 1);
+
+    updateStartBtnIcon();
+  }
+
+  // ---- Drag & drop (только до первого старта) ----
+  function onDragStart(e) {
+    if (wasStarted || isRunning) { e.preventDefault(); return; }
+    const item = e.currentTarget;
+    draggedIndex = parseInt(item.dataset.idx, 10);
+    item.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    try { e.dataTransfer.setData('text/plain', String(draggedIndex)); } catch (_) {}
+  }
+  function onDragEnd(e) {
+    e.currentTarget.classList.remove('dragging');
+    draggedIndex = -1;
+    blocksListEl.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+  }
+  function onDragOver(e) {
+    if (wasStarted || isRunning || draggedIndex < 0) return;
+    const idx = parseInt(e.currentTarget.dataset.idx, 10);
+    if (idx === draggedIndex) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    blocksListEl.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+    e.currentTarget.classList.add('drag-over');
+  }
+  function onDragLeave(e) { e.currentTarget.classList.remove('drag-over'); }
+  function onDrop(e) {
+    e.preventDefault();
+    if (wasStarted || isRunning) return;
+    const to = parseInt(e.currentTarget.dataset.idx, 10);
+    e.currentTarget.classList.remove('drag-over');
+    if (draggedIndex < 0 || draggedIndex === to) return;
+    reorderActiveBlocks(draggedIndex, to);
+  }
+
+  function reorderActiveBlocks(from, to) {
+    if (from === to) return;
+    const [moved] = activeBlocks.splice(from, 1);
+    activeBlocks.splice(to, 0, moved);
+    if (!isRunning && !isOvertime && activeBlocks.length > 0) {
+      remainingSec = activeBlocks[0].durationSec;
+    }
+    saveState();
+    renderBlocks();
+    updateTimerDisplay();
+    updateControls();
   }
 
   // ---- Переходы ----
   function advanceToNextBlock() {
     if (activeBlocks.length === 0) return;
-
     const finished = activeBlocks.shift();
     completedBlocks.push(finished);
+    justCompletedIds.add(finished.id);
 
     isOvertime = false;
     overtimeRemainingSec = 0;
@@ -267,11 +342,9 @@
       if (timerId) { clearInterval(timerId); timerId = null; }
       isRunning = false;
       isPaused = false;
-      pauseBtn.textContent = '⏸ Пауза';
     } else {
       remainingSec = activeBlocks[0].durationSec;
     }
-
     saveState();
     renderBlocks();
     updateTimerDisplay();
@@ -280,44 +353,53 @@
 
   function switchToActiveBlock(idx) {
     if (idx <= 0 || idx >= activeBlocks.length) return;
-
     for (let i = 0; i < idx; i++) {
-      completedBlocks.push(activeBlocks.shift());
+      const moved = activeBlocks.shift();
+      completedBlocks.push(moved);
+      justCompletedIds.add(moved.id);
     }
-
     remainingSec = activeBlocks[0].durationSec;
     isOvertime = false;
     overtimeRemainingSec = 0;
-
     saveState();
     renderBlocks();
     updateTimerDisplay();
     updateControls();
   }
 
+  // ---- Запуск / пауза / продолжение ----
   function startTimer() {
     if (isRunning || activeBlocks.length === 0) return;
     if (remainingSec <= 0 && !isOvertime) remainingSec = activeBlocks[0].durationSec;
 
+    wasStarted = true;
     isRunning = true;
     isPaused = false;
 
     timerId = setInterval(tick, 1000);
 
+    saveState();
     updateTimerDisplay();
     updateBlocksState();
     updateControls();
   }
 
+  function togglePauseResume() {
+    if (!isRunning) return;
+    isPaused = !isPaused;
+    updateControls();
+  }
+
+  function onStartBtnClick() {
+    if (isRunning) togglePauseResume();
+    else startTimer();
+  }
+
   function tick() {
     if (isPaused) return;
-
     if (isOvertime) {
       overtimeRemainingSec -= 1;
-      if (overtimeRemainingSec <= 0) {
-        advanceToNextBlock();
-        return;
-      }
+      if (overtimeRemainingSec <= 0) { advanceToNextBlock(); return; }
     } else {
       remainingSec -= 1;
       if (remainingSec <= 0) {
@@ -325,44 +407,36 @@
         if (settings.overtimeSeconds > 0) {
           isOvertime = true;
           overtimeRemainingSec = settings.overtimeSeconds;
-        } else {
-          advanceToNextBlock();
-          return;
-        }
+        } else { advanceToNextBlock(); return; }
       }
     }
-
     updateTimerDisplay();
     updateBlocksState();
     updateControls();
   }
 
-  function pauseTimer() {
-    if (!isRunning) return;
-    isPaused = !isPaused;
-    pauseBtn.textContent = isPaused ? '▶ Продолжить' : '⏸ Пауза';
-    updateControls();
-  }
-
   function skipBlock() {
-    if (activeBlocks.length === 0) return;
+    if (!wasStarted || activeBlocks.length === 0) return;
     advanceToNextBlock();
   }
 
-  // ---- СБРОС: восстанавливаем исходный порядок по id ----
+  // ---- Рестарт: возврат к исходному состоянию ----
   function resetTimer() {
-    // Все блоки снова становятся активными, в том порядке, в котором были созданы
+    if (!wasStarted) return;
+
     const allBlocks = [...activeBlocks, ...completedBlocks].sort((a, b) => a.id - b.id);
     activeBlocks = allBlocks;
     completedBlocks = [];
+    justCompletedIds.clear();
 
     if (timerId) { clearInterval(timerId); timerId = null; }
+    wasStarted = false;
     isRunning = false;
     isPaused = false;
     isOvertime = false;
     overtimeRemainingSec = 0;
     remainingSec = activeBlocks.length > 0 ? activeBlocks[0].durationSec : 0;
-    pauseBtn.textContent = '⏸ Пауза';
+    currentBtnState = null;   // сброс кеша, чтобы иконка обновилась
 
     saveState();
     renderBlocks();
@@ -374,23 +448,17 @@
   function addBlock() {
     const name = blockNameInput.value.trim();
     const duration = parseInt(blockDurationInput.value, 10);
-
     if (!name) { alert('Введите название блока'); return; }
     if (!Number.isFinite(duration) || duration < 1 || duration > 120) {
-      alert('Длительность должна быть от 1 до 120 минут');
-      return;
+      alert('Длительность должна быть от 1 до 120 минут'); return;
     }
-
     const newBlock = makeBlock(name, duration);
     activeBlocks.push(newBlock);
-
     blockNameInput.value = '';
     blockNameInput.focus();
-
     if (!isRunning && !isOvertime && activeBlocks.length === 1) {
       remainingSec = activeBlocks[0].durationSec;
     }
-
     saveState();
     renderBlocks(newBlock);
     updateTimerDisplay();
@@ -398,13 +466,9 @@
   }
 
   function removeActiveBlock(idx) {
-    if (isRunning && idx === 0) {
-      if (!confirm('Удалить текущий выполняемый блок? Таймер переключится на следующий.')) return;
-    }
-
+    if (isRunning) return;
     const wasCurrent = idx === 0;
     activeBlocks.splice(idx, 1);
-
     if (activeBlocks.length === 0) {
       remainingSec = 0;
       if (timerId) { clearInterval(timerId); timerId = null; }
@@ -412,13 +476,11 @@
       isPaused = false;
       isOvertime = false;
       overtimeRemainingSec = 0;
-      pauseBtn.textContent = '⏸ Пауза';
     } else if (wasCurrent) {
       remainingSec = activeBlocks[0].durationSec;
       isOvertime = false;
       overtimeRemainingSec = 0;
     }
-
     saveState();
     renderBlocks();
     updateTimerDisplay();
@@ -426,6 +488,7 @@
   }
 
   function removeCompletedBlock(idx) {
+    if (isRunning) return;
     completedBlocks.splice(idx, 1);
     saveState();
     renderBlocks();
@@ -453,7 +516,6 @@
     const fileContent =
       '// Автоматически сгенерированный файл настроек\n' +
       'window.APP_OPTIONS = ' + JSON.stringify(payload, null, 2) + ';\n';
-
     const blob = new Blob([fileContent], { type: 'application/javascript' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -470,16 +532,13 @@
   // ---- События ----
   addBtn.addEventListener('click', addBlock);
   blockNameInput.addEventListener('keydown', e => { if (e.key === 'Enter') addBlock(); });
-
-  startBtn.addEventListener('click', startTimer);
-  pauseBtn.addEventListener('click', pauseTimer);
+  startBtn.addEventListener('click', onStartBtnClick);
   skipBtn.addEventListener('click', skipBlock);
   resetBtn.addEventListener('click', resetTimer);
 
   // ---- Инициализация ----
   loadState();
   if (activeBlocks.length > 0) remainingSec = activeBlocks[0].durationSec;
-
   renderBlocks();
   updateTimerDisplay();
   updateControls();
