@@ -2,7 +2,10 @@
   'use strict';
 
   const RING_CIRCUMFERENCE = 2 * Math.PI * 95;
-  const STORAGE_KEY = 'timeblocks_state_v3';
+  const LEGACY_STORAGE_KEY = 'timeblocks_state_v3';
+  const DEFAULT_STORAGE_KEY = 'chronoblock:default';
+  let storageKey = DEFAULT_STORAGE_KEY;
+  let initialConfig = null;
 
   const ICONS = {
     play:  '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>',
@@ -23,9 +26,14 @@
   let isRunning = false;
   let wasStarted = false;         // NEW: была ли сессия запущена
   let draggedIndex = -1;
+  let meetingElapsedSec = 0;
+  let meetingPlannedSec = 0;
+  let lastTickAt = null;
   let currentBtnState = null;     // кеш состояния кнопки-переключателя
 
   const justCompletedIds = new Set();
+  let lastDisplayedTask = null;
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
   // ---- DOM ----
   const $ = (id) => document.getElementById(id);
@@ -35,6 +43,14 @@
   const addBtn = $('addBtn');
   const overtimeInput = $('overtimeInput');
   const exportBtn = $('exportBtn');
+  const shareBtn = $('shareBtn');
+  const clearBtn = $('clearBtn');
+  const keyboardHelpBtn = $('keyboardHelpBtn');
+  const meetingProgressFill = $('meetingProgressFill');
+  const meetingProgressTrack = $('meetingProgressTrack');
+  const meetingProgressPercent = $('meetingProgressPercent');
+  const meetingElapsed = $('meetingElapsed');
+  const meetingPlanned = $('meetingPlanned');
   const startBtn = $('startBtn');
   const skipBtn = $('skipBtn');
   const resetBtn = $('resetBtn');
@@ -71,15 +87,23 @@
   // ---- Storage ----
   function saveState() {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      localStorage.setItem(storageKey, JSON.stringify({
         activeBlocks, completedBlocks, settings, nextId, wasStarted,
+        meetingElapsedSec, meetingPlannedSec, remainingSec,
+        overtimeRemainingSec, isOvertime,
       }));
     } catch (_) {}
   }
   function loadState() {
     let loaded = false;
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
+      // Миграция прежнего состояния только для обычной страницы.
+      if (storageKey === DEFAULT_STORAGE_KEY &&
+          localStorage.getItem(DEFAULT_STORAGE_KEY) === null) {
+        const legacy = localStorage.getItem(LEGACY_STORAGE_KEY);
+        if (legacy !== null) localStorage.setItem(DEFAULT_STORAGE_KEY, legacy);
+      }
+      const raw = localStorage.getItem(storageKey);
       if (raw) {
         const parsed = JSON.parse(raw);
         if (parsed && Array.isArray(parsed.activeBlocks)) {
@@ -100,10 +124,17 @@
         if (parsed && typeof parsed.wasStarted === 'boolean') {
           wasStarted = parsed.wasStarted;
         }
+        if (loaded) {
+          if (Number.isFinite(parsed.meetingElapsedSec)) meetingElapsedSec = Math.max(0, parsed.meetingElapsedSec);
+          if (Number.isFinite(parsed.meetingPlannedSec)) meetingPlannedSec = Math.max(0, parsed.meetingPlannedSec);
+          if (wasStarted && Number.isFinite(parsed.remainingSec)) remainingSec = Math.max(0, parsed.remainingSec);
+          if (wasStarted && Number.isFinite(parsed.overtimeRemainingSec)) overtimeRemainingSec = Math.max(0, parsed.overtimeRemainingSec);
+          if (wasStarted) isOvertime = Boolean(parsed.isOvertime);
+        }
       }
     } catch (_) {}
     if (!loaded) {
-      const opts = (typeof window !== 'undefined' && window.APP_OPTIONS) || null;
+      const opts = initialConfig || window.APP_OPTIONS || null;
       if (opts) {
         if (opts.settings && Number.isFinite(opts.settings.overtimeSeconds)) {
           settings.overtimeSeconds = Math.max(0, Math.round(opts.settings.overtimeSeconds));
@@ -121,10 +152,23 @@
     return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
   }
 
+  function updateMeetingProgress() {
+    if (!meetingProgressFill) return;
+    const planned = meetingPlannedSec || [...activeBlocks, ...completedBlocks].reduce((sum, block) => sum + block.durationSec, 0);
+    const elapsed = Math.max(0, meetingElapsedSec);
+    const percent = planned > 0 ? Math.min(100, Math.floor(elapsed / planned * 100)) : 0;
+    meetingProgressFill.style.width = `${percent}%`;
+    meetingProgressPercent.textContent = `${percent}%`;
+    meetingProgressTrack.setAttribute('aria-valuenow', String(percent));
+    meetingElapsed.textContent = formatTime(elapsed);
+    meetingPlanned.textContent = formatTime(planned);
+  }
+
   // ---- Рендер списка ----
   function createBlockItem(block, idx, type) {
     const item = document.createElement('div');
     item.className = 'block-item';
+    item.dataset.blockId = String(block.id);
 
     const nameSpan = document.createElement('span');
     nameSpan.className = 'name';
@@ -162,7 +206,14 @@
     return item;
   }
 
-  function renderBlocks(newBlockRef = null) {
+  function renderBlocks(newBlockRef = null, animateCompletion = false) {
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const previous = new Map();
+    if (animateCompletion && !reduceMotion) {
+      for (const element of blocksListEl.children) {
+        previous.set(element.dataset.blockId, element.getBoundingClientRect());
+      }
+    }
     blocksListEl.innerHTML = '';
 
     activeBlocks.forEach((block) => {
@@ -179,16 +230,49 @@
       const item = createBlockItem(block, idx, 'completed');
       if (justCompletedIds.has(block.id)) {
         const id = block.id;
-        item.classList.add('just-completed');
-        item.addEventListener('animationend', () => {
-          item.classList.remove('just-completed');
-          justCompletedIds.delete(id);
-        }, { once: true });
+        if (!animateCompletion || reduceMotion) item.classList.add('just-completed');
+        if (!animateCompletion || reduceMotion) {
+          item.addEventListener('animationend', () => {
+            item.classList.remove('just-completed');
+            justCompletedIds.delete(id);
+          }, { once: true });
+        }
       }
       blocksListEl.appendChild(item);
     });
 
     updateBlocksState();
+    if (animateCompletion && !reduceMotion) {
+      // FLIP: перемещение блоков из прежних координат в новые.
+      for (const element of blocksListEl.children) {
+        const before = previous.get(element.dataset.blockId);
+        if (!before) continue;
+        const after = element.getBoundingClientRect();
+        const dx = before.left - after.left;
+        const dy = before.top - after.top;
+        const completed = justCompletedIds.has(Number(element.dataset.blockId));
+        if (completed) {
+          element.classList.add('completion-moving');
+          const animation = element.animate([
+            { transform: `translate(${dx}px, ${dy}px) scale(1)`, opacity: 1,
+              backgroundColor: 'rgba(139, 92, 246, 0.16)', borderColor: 'rgba(139, 92, 246, 0.55)' },
+            { offset: 0.35, transform: `translate(${dx * 0.65}px, ${dy * 0.65}px) scale(1.018)`, opacity: 1,
+              backgroundColor: 'rgba(236, 72, 153, 0.18)', borderColor: 'rgba(236, 72, 153, 0.6)' },
+            { transform: 'translate(0, 0) scale(1)', opacity: 0.42,
+              backgroundColor: 'rgba(255, 255, 255, 0.045)', borderColor: 'rgba(255, 255, 255, 0.09)' }
+          ], { duration: 850, easing: 'cubic-bezier(.22,.75,.22,1)' });
+          animation.finished.catch(() => {}).then(() => {
+            element.classList.remove('completion-moving');
+            justCompletedIds.delete(Number(element.dataset.blockId));
+          });
+        } else if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
+          element.animate([
+            { transform: `translate(${dx}px, ${dy}px)` },
+            { transform: 'translate(0, 0)' }
+          ], { duration: 700, easing: 'cubic-bezier(.22,.75,.22,1)' });
+        }
+      }
+    }
   }
 
   function updateBlocksState() {
@@ -198,6 +282,7 @@
       const isCurrent = idx === 0;
 
       item.classList.toggle('active', isCurrent);
+      item.classList.toggle('next-up', idx === 1);
       item.classList.toggle('is-running', isCurrent && isRunning && !isPaused);
 
       if (isCurrent) {
@@ -224,13 +309,30 @@
     timerRingEl.style.strokeDashoffset = String(RING_CIRCUMFERENCE * (1 - f));
   }
 
+  function setTaskLabel(label) {
+    if (lastDisplayedTask === label) return;
+    lastDisplayedTask = label;
+    // Анимация только при смене названия, а не каждую секунду таймера.
+    if (!reduceMotion.matches && currentBlockNameEl.animate) {
+      currentBlockNameEl.getAnimations().forEach(animation => animation.cancel());
+      currentBlockNameEl.animate([
+        { opacity: 0, transform: 'translateY(5px)' },
+        { opacity: 1, transform: 'translateY(0)' }
+      ], { duration: 420, easing: 'cubic-bezier(.22, 1, .36, 1)' });
+    }
+    currentBlockNameEl.textContent = label;
+  }
+
+  function syncTaskMotion() {
+    timerCircleEl.classList.toggle('task-in-progress', isRunning && !isPaused && activeBlocks.length > 0);
+  }
+
   function updateTimerDisplay() {
     timerDisplayEl.classList.toggle('overtime', isOvertime);
     timerCircleEl.classList.toggle('overtime', isOvertime);
 
     if (activeBlocks.length === 0) {
-      currentBlockNameEl.textContent =
-        completedBlocks.length > 0 ? 'Встреча завершена 🎉' : '—';
+      setTaskLabel(completedBlocks.length > 0 ? 'Встреча завершена' : '—');
       timerDisplayEl.textContent = '00:00';
       setRingFraction(0);
       return;
@@ -239,11 +341,11 @@
     const block = activeBlocks[0];
     if (isOvertime) {
       const elapsed = settings.overtimeSeconds - overtimeRemainingSec;
-      currentBlockNameEl.textContent = `⚠ ${block.name}`;
+      setTaskLabel(`⚠ ${block.name}`);
       timerDisplayEl.textContent = `+${formatTime(elapsed)}`;
       setRingFraction(1);
     } else {
-      currentBlockNameEl.textContent = block.name;
+      setTaskLabel(block.name);
       timerDisplayEl.textContent = formatTime(remainingSec);
       const fraction = block.durationSec > 0 ? remainingSec / block.durationSec : 0;
       setRingFraction(fraction);
@@ -276,9 +378,11 @@
     resetBtn.disabled = !wasStarted;
 
     timerCircleEl.classList.toggle('running', isRunning && !isPaused && !isOvertime);
+    syncTaskMotion();
     blocksListEl.classList.toggle('can-drag', !wasStarted && activeBlocks.length > 1);
 
     updateStartBtnIcon();
+    updateMeetingProgress();
   }
 
   // ---- Drag & drop (только до первого старта) ----
@@ -342,11 +446,12 @@
       if (timerId) { clearInterval(timerId); timerId = null; }
       isRunning = false;
       isPaused = false;
+      lastTickAt = null;
     } else {
       remainingSec = activeBlocks[0].durationSec;
     }
     saveState();
-    renderBlocks();
+    renderBlocks(null, true);
     updateTimerDisplay();
     updateControls();
   }
@@ -362,7 +467,7 @@
     isOvertime = false;
     overtimeRemainingSec = 0;
     saveState();
-    renderBlocks();
+    renderBlocks(null, true);
     updateTimerDisplay();
     updateControls();
   }
@@ -375,8 +480,10 @@
     wasStarted = true;
     isRunning = true;
     isPaused = false;
+    if (meetingPlannedSec === 0) meetingPlannedSec = [...activeBlocks, ...completedBlocks].reduce((sum, b) => sum + b.durationSec, 0);
+    lastTickAt = performance.now();
 
-    timerId = setInterval(tick, 1000);
+    timerId = setInterval(tick, 250);
 
     saveState();
     updateTimerDisplay();
@@ -386,7 +493,10 @@
 
   function togglePauseResume() {
     if (!isRunning) return;
+    if (!isPaused) accountElapsedTime();
     isPaused = !isPaused;
+    lastTickAt = isPaused ? null : performance.now();
+    saveState();
     updateControls();
   }
 
@@ -395,24 +505,43 @@
     else startTimer();
   }
 
-  function tick() {
-    if (isPaused) return;
-    if (isOvertime) {
-      overtimeRemainingSec -= 1;
-      if (overtimeRemainingSec <= 0) { advanceToNextBlock(); return; }
-    } else {
-      remainingSec -= 1;
-      if (remainingSec <= 0) {
-        remainingSec = 0;
-        if (settings.overtimeSeconds > 0) {
-          isOvertime = true;
-          overtimeRemainingSec = settings.overtimeSeconds;
-        } else { advanceToNextBlock(); return; }
+  function accountElapsedTime() {
+    if (!isRunning || isPaused || lastTickAt === null) return;
+    const now = performance.now();
+    let delta = Math.max(0, (now - lastTickAt) / 1000);
+    lastTickAt = now;
+    // Ограничаем огромные скачки при засыпании устройства: таймер считает
+    // только время активной сессии; паузы после перезагрузки не учитываются.
+    delta = Math.min(delta, 60);
+    meetingElapsedSec += delta;
+    while (delta > 0 && activeBlocks.length > 0) {
+      if (isOvertime) {
+        const step = Math.min(delta, overtimeRemainingSec);
+        overtimeRemainingSec -= step;
+        delta -= step;
+        if (overtimeRemainingSec <= 0.00001) advanceToNextBlock();
+      } else {
+        const step = Math.min(delta, remainingSec);
+        remainingSec -= step;
+        delta -= step;
+        if (remainingSec <= 0.00001) {
+          remainingSec = 0;
+          if (settings.overtimeSeconds > 0) {
+            isOvertime = true;
+            overtimeRemainingSec = settings.overtimeSeconds;
+          } else advanceToNextBlock();
+        }
       }
     }
+  }
+
+  function tick() {
+    if (isPaused || !isRunning) return;
+    accountElapsedTime();
     updateTimerDisplay();
     updateBlocksState();
     updateControls();
+    saveState();
   }
 
   function skipBlock() {
@@ -435,6 +564,9 @@
     isPaused = false;
     isOvertime = false;
     overtimeRemainingSec = 0;
+    meetingElapsedSec = 0;
+    meetingPlannedSec = 0;
+    lastTickAt = null;
     remainingSec = activeBlocks.length > 0 ? activeBlocks[0].durationSec : 0;
     currentBtnState = null;   // сброс кеша, чтобы иконка обновилась
 
@@ -448,9 +580,9 @@
   function addBlock() {
     const name = blockNameInput.value.trim();
     const duration = parseInt(blockDurationInput.value, 10);
-    if (!name) { alert('Введите название блока'); return; }
+    if (!name) { window.ChronoUI.toast('Укажите название задачи.', 'error'); return; }
     if (!Number.isFinite(duration) || duration < 1 || duration > 120) {
-      alert('Длительность должна быть от 1 до 120 минут'); return;
+      window.ChronoUI.toast('Укажите время от 1 до 120 минут.', 'error'); return;
     }
     const newBlock = makeBlock(name, duration);
     activeBlocks.push(newBlock);
@@ -527,7 +659,115 @@
     URL.revokeObjectURL(url);
   }
 
-  if (exportBtn) exportBtn.addEventListener('click', exportOptions);
+  // ---- Экспорт, сброс и Share ----
+  const isLocalFile = window.location.protocol === 'file:';
+  if (exportBtn) {
+    exportBtn.hidden = !isLocalFile;
+    exportBtn.addEventListener('click', exportOptions);
+  }
+  if (shareBtn) shareBtn.hidden = isLocalFile;
+
+  function getPortableConfig() {
+    const all = [...activeBlocks, ...completedBlocks].sort((a, b) => a.id - b.id);
+    return {
+      settings: { overtimeSeconds: settings.overtimeSeconds },
+      blocks: all.map(b => ({ name: b.name, durationMin: b.durationMin })),
+    };
+  }
+
+  async function copyShareLink(link) {
+    if (navigator.clipboard && window.isSecureContext) {
+      try { await navigator.clipboard.writeText(link); return true; } catch (_) {}
+    }
+    // Резервный способ для браузеров без Clipboard API.
+    const input = document.createElement('textarea');
+    input.value = link;
+    input.style.position = 'fixed';
+    input.style.opacity = '0';
+    document.body.appendChild(input);
+    input.select();
+    let copied = false;
+    try { copied = document.execCommand('copy'); } catch (_) {}
+    input.remove();
+    return copied;
+  }
+
+  if (shareBtn) shareBtn.addEventListener('click', async () => {
+    shareBtn.disabled = true;
+    try {
+      const token = await window.ChronoConfig.encode(getPortableConfig());
+      const url = new URL(window.location.href);
+      url.hash = 'config=' + token;
+      const link = url.toString();
+      if (await copyShareLink(link)) {
+        window.ChronoUI.toast('Ссылка скопирована. Теперь можно поделиться задачами.');
+      } else {
+        await window.ChronoUI.modal({
+          title: 'Поделиться конфигурацией',
+          message: 'Автоматическое копирование недоступно. Выделите ссылку и скопируйте её вручную.',
+          inputValue: link,
+          confirmText: 'Готово',
+          cancelText: 'Закрыть'
+        });
+      }
+    } catch (error) {
+      console.error('[chronoblock] Share:', error);
+      window.ChronoUI.toast('Не удалось создать ссылку. Попробуйте ещё раз.', 'error');
+    } finally {
+      shareBtn.disabled = false;
+    }
+  });
+
+  if (clearBtn) clearBtn.addEventListener('click', async () => {
+    const shared = Boolean(initialConfig);
+    const confirmed = await window.ChronoUI.modal({
+      title: 'Вернуть исходные настройки?',
+      message: shared
+        ? 'Изменения этой конфигурации будут удалены. Задачи и настройки восстановятся из исходной ссылки.'
+        : 'Все изменения будут отменены. Список задач и настройки времени вернутся к исходным значениям.',
+      confirmText: 'Сбросить'
+    });
+    if (!confirmed) return;
+    try {
+      localStorage.removeItem(storageKey);
+      if (storageKey === DEFAULT_STORAGE_KEY) localStorage.removeItem(LEGACY_STORAGE_KEY);
+    } catch (error) {
+      console.error('[chronoblock] Reset:', error);
+      window.ChronoUI.toast('Не удалось сбросить настройки. Проверьте доступ к хранилищу браузера.', 'error');
+      return;
+    }
+    window.location.reload();
+  });
+
+  // ---- Горячие клавиши и справка ----
+  if (keyboardHelpBtn) keyboardHelpBtn.addEventListener('click', showKeyboardHelp);
+  function showKeyboardHelp() {
+    window.ChronoUI.modal({
+      title: 'Горячие клавиши',
+      message: '',
+      keyboardHelp: true,
+      confirmText: 'Понятно'
+    });
+  }
+  document.addEventListener('keydown', (event) => {
+    if (event.defaultPrevented || event.repeat || event.ctrlKey || event.altKey || event.metaKey || event.isComposing) return;
+    const target = event.target;
+    if (target instanceof Element && (target.closest('input, textarea, select, [contenteditable="true"], dialog') || target.closest('button, a'))) return;
+    if (document.querySelector('dialog[open]')) return;
+    if (event.code === 'Space') {
+      event.preventDefault();
+      if (!startBtn.disabled) onStartBtnClick();
+    } else if (event.key === 'ArrowRight') {
+      event.preventDefault();
+      if (!skipBtn.disabled) skipBlock();
+    } else if (event.key.toLowerCase() === 'r') {
+      event.preventDefault();
+      if (!resetBtn.disabled) resetTimer();
+    } else if (event.key === '?' || (event.code === 'Slash' && event.shiftKey)) {
+      event.preventDefault();
+      showKeyboardHelp();
+    }
+  });
 
   // ---- События ----
   addBtn.addEventListener('click', addBlock);
@@ -537,9 +777,33 @@
   resetBtn.addEventListener('click', resetTimer);
 
   // ---- Инициализация ----
-  loadState();
-  if (activeBlocks.length > 0) remainingSec = activeBlocks[0].durationSec;
-  renderBlocks();
-  updateTimerDisplay();
-  updateControls();
+  async function initialize() {
+    const token = window.ChronoConfig.getUrlToken();
+    if (token !== null) {
+      try {
+        initialConfig = await window.ChronoConfig.decode(token);
+        storageKey = 'chronoblock:shared:' + window.ChronoConfig.getConfigHash(initialConfig);
+      } catch (error) {
+        console.error('[chronoblock] Invalid share link:', error);
+        window.ChronoUI.toast('Не удалось открыть конфигурацию. Проверьте ссылку.', 'error');
+        // Не заменяем и не стираем локальные данные при ошибочной ссылке.
+        initialConfig = null;
+        storageKey = DEFAULT_STORAGE_KEY;
+      }
+    }
+    loadState();
+    if (!wasStarted || !Number.isFinite(remainingSec) || remainingSec <= 0 && !isOvertime) {
+      remainingSec = activeBlocks.length > 0 ? activeBlocks[0].durationSec : 0;
+    }
+    // После обновления страницы запущенный таймер восстанавливается на паузе.
+    isRunning = false;
+    isPaused = false;
+    lastTickAt = null;
+    renderBlocks();
+    updateTimerDisplay();
+    updateControls();
+  }
+  // При смене ссылки в открытой вкладке выбираем другое хранилище.
+  window.addEventListener('hashchange', () => window.location.reload());
+  initialize();
 })();

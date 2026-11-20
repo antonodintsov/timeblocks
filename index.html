@@ -11,7 +11,12 @@
 </head>
 <body>
   <div class="app">
-    <h1>⏱ Хроноблок</h1>
+    <header class="app-header">
+      <h1>⏱ Хроноблок</h1>
+      <button id="keyboardHelpBtn" type="button" class="keyboard-help-btn" aria-label="Горячие клавиши" title="Горячие клавиши">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M6 9h1m3 0h1m3 0h1m3 0h1M6 12h1m3 0h1m3 0h1m3 0h1M8 16h8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
+    </header>
 
     <!-- Таймер -->
     <div class="status">
@@ -36,6 +41,18 @@
           <div id="currentBlockName">—</div>
         </div>
       </div>
+    <!-- Компактный прогресс встречи под кругом таймера -->
+    <section class="meeting-progress" aria-label="Прогресс встречи">
+      <div class="meeting-progress-head">
+        <div class="meeting-progress-summary" aria-label="Прошло времени из планового">
+          <span class="meeting-progress-time"><span id="meetingElapsed">00:00</span> / <span id="meetingPlanned">00:00</span></span>
+          <span class="meeting-progress-percent" id="meetingProgressPercent">0%</span>
+        </div>
+      </div>
+      <div class="meeting-progress-track" id="meetingProgressTrack" role="progressbar" aria-label="Использовано планового времени встречи" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <div class="meeting-progress-fill" id="meetingProgressFill"></div>
+      </div>
+    </section>
     </div>
 
     <!-- Три круглые кнопки: toggle Старт/Пауза/Продолжить, Следующий, Рестарт -->
@@ -51,14 +68,13 @@
       </button>
     </div>
 
-    <!-- Список -->
     <div id="blocksList" class="blocks-list"></div>
 
     <!-- Добавление -->
     <div class="add-block">
       <input type="text" id="blockName" placeholder="Название блока" maxlength="60">
       <input type="number" id="blockDuration" placeholder="Мин" min="1" max="120" value="1">
-      <button id="addBtn" class="primary">+ Добавить</button>
+      <button id="addBtn" class="primary" aria-label="Добавить задачу" title="Добавить задачу"><span class="compact-btn-icon" aria-hidden="true">+</span><span class="compact-btn-label">Добавить</span></button>
     </div>
 
     <!-- Настройки -->
@@ -68,11 +84,17 @@
         <input type="number" id="overtimeInput" min="0" max="600" value="30">
         <span>сек</span>
       </label>
-      <button id="exportBtn">⤓ Экспорт</button>
+      <div class="settings-actions">
+        <button id="clearBtn" type="button" aria-label="Сбросить настройки" title="Сбросить настройки"><span class="compact-btn-icon" aria-hidden="true">↺</span><span class="compact-btn-label">Сбросить</span></button>
+        <button id="exportBtn" type="button" hidden aria-label="Экспорт конфигурации" title="Экспорт конфигурации"><span class="compact-btn-icon" aria-hidden="true">⤓</span><span class="compact-btn-label">Экспорт</span></button>
+        <button id="shareBtn" type="button" hidden aria-label="Поделиться конфигурацией" title="Поделиться конфигурацией"><span class="compact-btn-icon" aria-hidden="true">↗</span><span class="compact-btn-label">Поделиться</span></button>
+      </div>
     </div>
   </div>
 
   <script src="options.js"></script>
+  <script src="config.js"></script>
+  <script src="ui.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
