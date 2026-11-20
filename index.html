@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Таймер встреч по блокам</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <h1>⏱ Таймер встречи</h1>
+
+    <!-- 1. ТАЙМЕР -->
+    <div class="status">
+      <div class="timer-circle">
+        <svg viewBox="0 0 220 220" aria-hidden="true">
+          <defs>
+            <linearGradient id="ringGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%"   stop-color="#8b5cf6"/>
+              <stop offset="50%"  stop-color="#ec4899"/>
+              <stop offset="100%" stop-color="#06b6d4"/>
+            </linearGradient>
+            <linearGradient id="ringOverGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%"   stop-color="#f43f5e"/>
+              <stop offset="100%" stop-color="#f97316"/>
+            </linearGradient>
+          </defs>
+          <circle class="timer-bg" cx="110" cy="110" r="95"/>
+          <circle id="timerRing" class="timer-ring" cx="110" cy="110" r="95"/>
+        </svg>
+        <div class="timer-content">
+          <div id="timerDisplay">00:00</div>
+          <div id="currentBlockName">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. УПРАВЛЕНИЕ -->
+    <div class="controls">
+      <button id="startBtn" class="primary">▶ Старт</button>
+      <button id="pauseBtn" disabled>⏸ Пауза</button>
+      <button id="skipBtn" disabled>⏭ Пропустить</button>
+      <button id="resetBtn" class="danger">↺ Сброс</button>
+    </div>
+
+    <!-- 3. СПИСОК -->
+    <div id="blocksList" class="blocks-list"></div>
+
+    <!-- 4. ФОРМА -->
+    <div class="add-block">
+      <input type="text" id="blockName" placeholder="Название блока" maxlength="60">
+      <input type="number" id="blockDuration" placeholder="Мин" min="1" max="120" value="1">
+      <button id="addBtn" class="primary">+ Добавить</button>
+    </div>
+
+    <!-- 5. НАСТРОЙКИ И ЭКСПОРТ -->
+    <div class="settings-row">
+      <label class="setting">
+        <span>Овертайм</span>
+        <input type="number" id="overtimeInput" min="0" max="600" value="30">
+        <span>сек</span>
+      </label>
+      <button id="exportBtn">⤓ Экспорт</button>
+    </div>
+  </div>
+
+  <script src="options.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
