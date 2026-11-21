@@ -43,6 +43,8 @@
   const addBtn = $('addBtn');
   const overtimeInput = $('overtimeInput');
   const exportBtn = $('exportBtn');
+  const importBtn = $('importBtn');
+  const importFile = $('importFile');
   const shareBtn = $('shareBtn');
   const clearBtn = $('clearBtn');
   const keyboardHelpBtn = $('keyboardHelpBtn');
@@ -657,6 +659,61 @@
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  }
+
+  // ---- Импорт файла экспорта без выполнения JavaScript ----
+  function parseImportedOptions(source) {
+    // Принимаем только JSON или точный формат экспортируемого options.js.
+    // Никаких eval, Function или динамических script-тегов.
+    const text = source.replace(/^\uFEFF/, '').trim();
+    let json = text;
+    if (!text.startsWith('{')) {
+      const match = text.match(/^(?:\/\/[^\r\n]*\r?\n\s*)*window\.APP_OPTIONS\s*=\s*(\{[\s\S]*\})\s*;?\s*$/);
+      if (!match) throw new Error('Файл не похож на экспорт Хроноблока');
+      json = match[1];
+    }
+    return window.ChronoConfig.normalize(JSON.parse(json));
+  }
+
+  if (importBtn && importFile) {
+    importBtn.addEventListener('click', () => importFile.click());
+    importFile.addEventListener('change', async () => {
+      const file = importFile.files && importFile.files[0];
+      importFile.value = ''; // повторный выбор того же файла тоже должен работать
+      if (!file) return;
+      if (file.size > 65536) {
+        window.ChronoUI.toast('Файл слишком большой (максимум 64 КБ).', 'error');
+        return;
+      }
+      importBtn.disabled = true;
+      try {
+        const config = parseImportedOptions(await file.text());
+        const confirmed = await window.ChronoUI.modal({
+          title: 'Импортировать конфигурацию?',
+          message: `Будут заменены текущие задачи и настройки овертайма (${config.blocks.length} задач). Прогресс встречи сбросится.`,
+          confirmText: 'Импортировать'
+        });
+        if (!confirmed) return;
+        const blocks = config.blocks.map((b, i) => ({
+          id: i + 1, name: b.name, durationMin: b.durationMin, durationSec: b.durationMin * 60
+        }));
+        const state = {
+          activeBlocks: blocks, completedBlocks: [],
+          settings: config.settings, nextId: blocks.length + 1,
+          wasStarted: false, meetingElapsedSec: 0, meetingPlannedSec: 0,
+          remainingSec: blocks.length ? blocks[0].durationSec : 0,
+          overtimeRemainingSec: 0, isOvertime: false
+        };
+        // Записываем только в пространство текущей конфигурации.
+        localStorage.setItem(storageKey, JSON.stringify(state));
+        window.location.reload();
+      } catch (error) {
+        console.error('[chronoblock] Import:', error);
+        window.ChronoUI.toast('Не удалось импортировать: ' + (error instanceof SyntaxError ? 'ошибка формата файла' : error.message), 'error');
+      } finally {
+        importBtn.disabled = false;
+      }
+    });
   }
 
   // ---- Экспорт, сброс и Share ----
