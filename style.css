@@ -707,3 +707,52 @@ button.danger:hover:not(:disabled) {
 .cb-shortcuts-table th { width: 36%; font-weight: 500; }
 .cb-shortcuts-table td { color: var(--text-dim); }
 .cb-shortcuts-table kbd { display: inline-block; min-width: 2rem; padding: .28rem .55rem; border: 1px solid rgba(196,181,253,.25); border-radius: 7px; background: rgba(139,92,246,.13); color: #e9d5ff; text-align: center; font: inherit; font-weight: 600; }
+
+/* v3.1: общая полоса на нижней кромке карточки, как у активной задачи. */
+.status {
+  position: relative;
+  overflow: hidden;
+  padding-bottom: 2.65rem;
+}
+.status .meeting-progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  min-width: 0;
+  pointer-events: none;
+}
+.status .meeting-progress-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0;
+  padding: 0 1.5rem .55rem;
+  color: var(--text-dim);
+  font-size: .78rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.status .meeting-progress-track {
+  height: 3px;
+  width: 100%;
+  background: rgba(139,92,246,.10);
+  border-radius: 0;
+}
+.status .meeting-progress-fill {
+  height: 100%;
+  border-radius: 0;
+  background: linear-gradient(90deg, #8b5cf6, #ec4899);
+  opacity: .7;
+  transition: width .5s linear;
+}
+/* Справка по клавишам только на десктопе. */
+@media (max-width: 767px) {
+  #keyboardHelpBtn { display: none !important; }
+}
+@media (max-width: 480px) {
+  .status .meeting-progress-head { padding-inline: 1rem; }
+}

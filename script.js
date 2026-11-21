@@ -158,7 +158,7 @@
     const elapsed = Math.max(0, meetingElapsedSec);
     const percent = planned > 0 ? Math.min(100, Math.floor(elapsed / planned * 100)) : 0;
     meetingProgressFill.style.width = `${percent}%`;
-    meetingProgressPercent.textContent = `${percent}%`;
+    if (meetingProgressPercent) meetingProgressPercent.textContent = `${percent}%`;
     meetingProgressTrack.setAttribute('aria-valuenow', String(percent));
     meetingElapsed.textContent = formatTime(elapsed);
     meetingPlanned.textContent = formatTime(planned);
@@ -282,7 +282,7 @@
       const isCurrent = idx === 0;
 
       item.classList.toggle('active', isCurrent);
-      item.classList.toggle('next-up', idx === 1);
+      item.classList.toggle('next-up', idx === 1 && isRunning);
       item.classList.toggle('is-running', isCurrent && isRunning && !isPaused);
 
       if (isCurrent) {
@@ -662,7 +662,7 @@
   // ---- Экспорт, сброс и Share ----
   const isLocalFile = window.location.protocol === 'file:';
   if (exportBtn) {
-    exportBtn.hidden = !isLocalFile;
+    exportBtn.hidden = false;
     exportBtn.addEventListener('click', exportOptions);
   }
   if (shareBtn) shareBtn.hidden = isLocalFile;

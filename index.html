@@ -41,13 +41,11 @@
           <div id="currentBlockName">—</div>
         </div>
       </div>
-    <!-- Компактный прогресс встречи под кругом таймера -->
+    <!-- Общее время на нижней границе карточки таймера -->
     <section class="meeting-progress" aria-label="Прогресс встречи">
       <div class="meeting-progress-head">
-        <div class="meeting-progress-summary" aria-label="Прошло времени из планового">
-          <span class="meeting-progress-time"><span id="meetingElapsed">00:00</span> / <span id="meetingPlanned">00:00</span></span>
-          <span class="meeting-progress-percent" id="meetingProgressPercent">0%</span>
-        </div>
+        <span id="meetingElapsed" aria-label="Прошло времени">00:00</span>
+        <span id="meetingPlanned" aria-label="Запланировано времени">00:00</span>
       </div>
       <div class="meeting-progress-track" id="meetingProgressTrack" role="progressbar" aria-label="Использовано планового времени встречи" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
         <div class="meeting-progress-fill" id="meetingProgressFill"></div>
@@ -86,7 +84,7 @@
       </label>
       <div class="settings-actions">
         <button id="clearBtn" type="button" aria-label="Сбросить настройки" title="Сбросить настройки"><span class="compact-btn-icon" aria-hidden="true">↺</span><span class="compact-btn-label">Сбросить</span></button>
-        <button id="exportBtn" type="button" hidden aria-label="Экспорт конфигурации" title="Экспорт конфигурации"><span class="compact-btn-icon" aria-hidden="true">⤓</span><span class="compact-btn-label">Экспорт</span></button>
+        <button id="exportBtn" type="button" aria-label="Экспорт конфигурации" title="Экспорт конфигурации"><span class="compact-btn-icon" aria-hidden="true">⤓</span><span class="compact-btn-label">Экспорт</span></button>
         <button id="shareBtn" type="button" hidden aria-label="Поделиться конфигурацией" title="Поделиться конфигурацией"><span class="compact-btn-icon" aria-hidden="true">↗</span><span class="compact-btn-label">Поделиться</span></button>
       </div>
     </div>
