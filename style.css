@@ -785,3 +785,39 @@ button.danger:hover:not(:disabled) {
 @media (max-width: 480px) {
   .status .meeting-progress-head { padding-inline: 1rem; }
 }
+
+/* Настройки: отдельная строка овертайма и равномерная панель действий. */
+.settings-row {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  flex-wrap: nowrap;
+  gap: 0;
+}
+.settings-row > .setting {
+  width: 100%;
+  padding: 0 0 1rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+.settings-row > .settings-actions {
+  display: flex;
+  width: 100%;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 0.55rem;
+}
+.settings-row > .settings-actions button:not([hidden]) {
+  flex: 1 1 0;
+  width: 0;
+  min-width: 0;
+}
+@media (max-width: 560px) {
+  .settings-row > .settings-actions button:not([hidden]) {
+    flex: 1 1 0;
+    width: 0;
+    min-width: 0;
+    max-width: none;
+  }
+}
