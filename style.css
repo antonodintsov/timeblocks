@@ -684,7 +684,36 @@ button.danger:hover:not(:disabled) {
   .meeting-progress-title { font-size: .88rem; }
 }
 .block-item.next-up:not(.done):not(.active) { border-color: rgba(167,139,250,.4); background: rgba(139,92,246,.065); }
-.block-item.next-up:not(.done) .name::after { content: 'ДАЛЕЕ'; display: block; margin-top: .3rem; color: #c4b5fd; font-size: .65rem; font-weight: 700; letter-spacing: .09em; }
+/* Компактный угловой указатель следующей задачи: внутри рамки,
+   без смещения названия, времени и кнопки удаления. */
+.block-item.next-up:not(.done):not(.active)::before {
+  content: '↘';
+  position: absolute;
+  z-index: 3;
+  top: 0;
+  left: 0;
+  width: 17px;
+  height: 17px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0 0 6px 0;
+  background: #7041a7;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  pointer-events: none;
+  transform-origin: top left;
+  animation: next-arrow-appear 300ms cubic-bezier(.2,.8,.2,1) both;
+}
+@keyframes next-arrow-appear {
+  from { opacity: 0; transform: scale(.65); }
+  to { opacity: 1; transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .block-item.next-up:not(.done):not(.active)::before { animation: none; }
+}
 .keyboard-help-row { display: flex; justify-content: flex-end; margin-top: -.75rem; }
 .keyboard-help-btn { display: inline-flex; align-items: center; gap: .5rem; font-size: .8rem; padding: .5rem .85rem; color: var(--text-dim); }
 .keyboard-help-btn svg { width: 17px; height: 17px; flex: none; }
@@ -750,7 +779,7 @@ button.danger:hover:not(:disabled) {
   transition: width .5s linear;
 }
 /* Справка по клавишам только на десктопе. */
-@media (max-width: 767px) {
+@media (max-width: 767px), (pointer: coarse) {
   #keyboardHelpBtn { display: none !important; }
 }
 @media (max-width: 480px) {
