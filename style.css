@@ -181,8 +181,16 @@ h1 {
   text-shadow: 0 0 24px rgba(244, 63, 94, 0.65);
 }
 
-#currentBlockName {
+.current-block-name-slot {
   margin-top: 0.55rem;
+  height: calc(2.6 * clamp(20px, 2.5vw, 30px) + 9px);
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+#currentBlockName {
   font-size: clamp(20px, 2.5vw, 30px);
   font-weight: 600;
   line-height: 1.3;
@@ -195,11 +203,6 @@ h1 {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
-  /* Резервируем место под две строки даже при коротком названии.
-     Включаем и нижний отступ для декоративного подчёркивания. */
-  height: calc(2.6em + 9px);
-  min-height: calc(2.6em + 9px);
-  box-sizing: border-box;
 }
 
 /* Подпись таймера: сдержанный движущийся блик в фирменных цветах. */
