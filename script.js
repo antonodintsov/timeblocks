@@ -70,6 +70,19 @@
     if (!el) { console.error(`[chronoblock] Не найден DOM: ${name}`); return; }
   }
 
+  // Отправляем только названия событий и агрегированные числовые показатели.
+  const analytics = (name, params) => window.ChronoAnalytics?.goal(name, params);
+  let analyticsMeetingReported = false;
+  function reportMeeting(outcome) {
+    if (!wasStarted || analyticsMeetingReported) return;
+    analyticsMeetingReported = true;
+    analytics(outcome, {
+      duration_seconds: Math.round(meetingElapsedSec),
+      planned_seconds: Math.round(meetingPlannedSec),
+      blocks_count: activeBlocks.length + completedBlocks.length
+    });
+  }
+
   // ---- Фабрика / нормализация ----
   function makeBlock(name, durationMin) {
     return { id: nextId++, name, durationMin, durationSec: durationMin * 60 };
@@ -449,6 +462,7 @@
       isRunning = false;
       isPaused = false;
       lastTickAt = null;
+      reportMeeting('meeting_complete');
     } else {
       remainingSec = activeBlocks[0].durationSec;
     }
@@ -480,6 +494,8 @@
     if (remainingSec <= 0 && !isOvertime) remainingSec = activeBlocks[0].durationSec;
 
     wasStarted = true;
+    analyticsMeetingReported = false;
+    analytics('meeting_start', { blocks_count: activeBlocks.length + completedBlocks.length, planned_seconds: Math.round(meetingPlannedSec || [...activeBlocks, ...completedBlocks].reduce((sum, b) => sum + b.durationSec, 0)) });
     isRunning = true;
     isPaused = false;
     if (meetingPlannedSec === 0) meetingPlannedSec = [...activeBlocks, ...completedBlocks].reduce((sum, b) => sum + b.durationSec, 0);
@@ -497,6 +513,7 @@
     if (!isRunning) return;
     if (!isPaused) accountElapsedTime();
     isPaused = !isPaused;
+    analytics(isPaused ? 'meeting_pause' : 'meeting_resume');
     lastTickAt = isPaused ? null : performance.now();
     saveState();
     updateControls();
@@ -548,12 +565,14 @@
 
   function skipBlock() {
     if (!wasStarted || activeBlocks.length === 0) return;
+    analytics('block_skip');
     advanceToNextBlock();
   }
 
   // ---- Рестарт: возврат к исходному состоянию ----
   function resetTimer() {
     if (!wasStarted) return;
+    reportMeeting('meeting_restart');
 
     const allBlocks = [...activeBlocks, ...completedBlocks].sort((a, b) => a.id - b.id);
     activeBlocks = allBlocks;
@@ -588,6 +607,7 @@
     }
     const newBlock = makeBlock(name, duration);
     activeBlocks.push(newBlock);
+    analytics('block_add');
     blockNameInput.value = '';
     blockNameInput.focus();
     if (!isRunning && !isOvertime && activeBlocks.length === 1) {
@@ -603,6 +623,7 @@
     if (isRunning) return;
     const wasCurrent = idx === 0;
     activeBlocks.splice(idx, 1);
+    analytics('block_delete');
     if (activeBlocks.length === 0) {
       remainingSec = 0;
       if (timerId) { clearInterval(timerId); timerId = null; }
@@ -624,6 +645,7 @@
   function removeCompletedBlock(idx) {
     if (isRunning) return;
     completedBlocks.splice(idx, 1);
+    analytics('block_delete');
     saveState();
     renderBlocks();
     updateControls();
@@ -706,6 +728,7 @@
         };
         // Записываем только в пространство текущей конфигурации.
         localStorage.setItem(storageKey, JSON.stringify(state));
+        analytics('config_import');
         window.location.reload();
       } catch (error) {
         console.error('[chronoblock] Import:', error);
@@ -720,7 +743,7 @@
   const isLocalFile = window.location.protocol === 'file:';
   if (exportBtn) {
     exportBtn.hidden = false;
-    exportBtn.addEventListener('click', exportOptions);
+    exportBtn.addEventListener('click', () => { exportOptions(); analytics('config_export'); });
   }
   if (shareBtn) shareBtn.hidden = isLocalFile;
 
@@ -756,6 +779,7 @@
       const url = new URL(window.location.href);
       url.hash = 'config=' + token;
       const link = url.toString();
+      analytics('share_create');
       if (await copyShareLink(link)) {
         window.ChronoUI.toast('Ссылка скопирована. Теперь можно поделиться блоками.');
       } else {
@@ -793,6 +817,7 @@
       window.ChronoUI.toast('Не удалось сбросить настройки. Проверьте доступ к хранилищу браузера.', 'error');
       return;
     }
+    analytics('config_reset');
     window.location.reload();
   });
 
