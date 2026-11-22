@@ -19,7 +19,7 @@
       m[i].l=Date.now();
       k=e.createElement(t);a=e.getElementsByTagName(t)[0];k.async=1;k.src=r;a.parentNode.insertBefore(k,a);
     })(window,document,'script','https://mc.yandex.ru/metrika/tag.js','ym');
-    window.ym(ID, 'init', { defer: true, clickmap: false, trackLinks: false, accurateTrackBounce: false, webvisor: false });
+    window.ym(ID, 'init', { defer: true, clickmap: true, trackLinks: false, accurateTrackBounce: false, webvisor: false });
     // URL без query и hash: конфигурации по ссылке не передаются в Метрику.
     window.ym(ID, 'hit', window.location.origin + window.location.pathname, { title: 'Хроноблок' });
   }
