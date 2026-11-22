@@ -195,6 +195,11 @@ h1 {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+  /* Резервируем место под две строки даже при коротком названии.
+     Включаем и нижний отступ для декоративного подчёркивания. */
+  height: calc(2.6em + 9px);
+  min-height: calc(2.6em + 9px);
+  box-sizing: border-box;
 }
 
 /* Подпись таймера: сдержанный движущийся блик в фирменных цветах. */
