@@ -314,7 +314,7 @@ button.danger:hover:not(:disabled) {
   gap: 0.6rem;
 }
 .blocks-list:empty::after {
-  content: 'Пока пусто — добавьте первый блок внизу';
+  content: 'Пока пусто — добавьте первый блок';
   color: var(--text-dim);
   text-align: center;
   padding: 1.5rem 1rem;

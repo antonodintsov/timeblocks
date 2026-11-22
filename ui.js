@@ -50,7 +50,7 @@
       const shortcuts = keyboardHelp ? document.createElement('table') : null;
       if (shortcuts) {
         shortcuts.className = 'cb-shortcuts-table';
-        const entries = [['Пробел', 'Старт / пауза'], ['→', 'Следующая задача'], ['R', 'Рестарт всей встречи'], ['?', 'Открыть справку'], ['Esc', 'Закрыть окно']];
+        const entries = [['Пробел', 'Старт / пауза'], ['→', 'Следующий блок'], ['R', 'Рестарт'], ['?', 'Открыть справку'], ['Esc', 'Закрыть окно']];
         for (const [key, action] of entries) {
           const tr = document.createElement('tr');
           const th = document.createElement('th'); th.scope = 'row';

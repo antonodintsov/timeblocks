@@ -334,7 +334,7 @@
     timerCircleEl.classList.toggle('overtime', isOvertime);
 
     if (activeBlocks.length === 0) {
-      setTaskLabel(completedBlocks.length > 0 ? 'Встреча завершена' : '—');
+      setTaskLabel(completedBlocks.length > 0 ? 'Завершено' : '—');
       timerDisplayEl.textContent = '00:00';
       setRingFraction(0);
       return;
@@ -582,7 +582,7 @@
   function addBlock() {
     const name = blockNameInput.value.trim();
     const duration = parseInt(blockDurationInput.value, 10);
-    if (!name) { window.ChronoUI.toast('Укажите название задачи.', 'error'); return; }
+    if (!name) { window.ChronoUI.toast('Укажите название блока.', 'error'); return; }
     if (!Number.isFinite(duration) || duration < 1 || duration > 120) {
       window.ChronoUI.toast('Укажите время от 1 до 120 минут.', 'error'); return;
     }
@@ -690,7 +690,7 @@
         const config = parseImportedOptions(await file.text());
         const confirmed = await window.ChronoUI.modal({
           title: 'Импортировать конфигурацию?',
-          message: `Будут заменены текущие задачи и настройки овертайма (${config.blocks.length} задач). Прогресс встречи сбросится.`,
+          message: `Будут заменены текущие блоки и настройки овертайма (${config.blocks.length} блоков). Прогресс встречи сбросится.`,
           confirmText: 'Импортировать'
         });
         if (!confirmed) return;
@@ -757,7 +757,7 @@
       url.hash = 'config=' + token;
       const link = url.toString();
       if (await copyShareLink(link)) {
-        window.ChronoUI.toast('Ссылка скопирована. Теперь можно поделиться задачами.');
+        window.ChronoUI.toast('Ссылка скопирована. Теперь можно поделиться блоками.');
       } else {
         await window.ChronoUI.modal({
           title: 'Поделиться конфигурацией',
@@ -780,8 +780,8 @@
     const confirmed = await window.ChronoUI.modal({
       title: 'Вернуть исходные настройки?',
       message: shared
-        ? 'Изменения этой конфигурации будут удалены. Задачи и настройки восстановятся из исходной ссылки.'
-        : 'Все изменения будут отменены. Список задач и настройки времени вернутся к исходным значениям.',
+        ? 'Изменения этой конфигурации будут удалены. Блоки и настройки восстановятся из исходной ссылки.'
+        : 'Все изменения будут отменены. Список блоков и настройки времени вернутся к исходным значениям.',
       confirmText: 'Сбросить'
     });
     if (!confirmed) return;
