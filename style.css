@@ -821,11 +821,3 @@ button.danger:hover:not(:disabled) {
     max-width: none;
   }
 }
-
-/* Необязательная аналитика: согласие без перекрытия основного интерфейса. */
-.analytics-consent[hidden] { display: none; }
-.analytics-consent { position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%); width: min(94vw, 590px); z-index: 1100; padding: 16px; border: 1px solid #8055b6; border-radius: 14px; background: #21172e; color: #f6edff; box-shadow: 0 12px 40px #0009; }
-.analytics-consent p { margin: 0 0 12px; font-size: .86rem; line-height: 1.5; }
-.analytics-consent-actions { display: flex; gap: 10px; justify-content: flex-end; }
-.analytics-consent-actions button { min-width: 120px; }
-@media(max-width: 420px) { .analytics-consent-actions button { flex: 1; min-width: 0; } }
