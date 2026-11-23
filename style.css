@@ -1063,5 +1063,5 @@ button.danger:hover:not(:disabled) {
 }
 
 /* v3.14: границы кнопок «Рестарт» и «Следующий» не меняются при наведении. */
-.status > .controls #resetBtn:hover:not(:disabled),
+.status > .controls #resetBtn:hover:not(:disabled) { border-color: rgba(var(--pink-rgb), 0.35); }
 .status > .controls #skipBtn:hover:not(:disabled) { border-color: var(--border); }
