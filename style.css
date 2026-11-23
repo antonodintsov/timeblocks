@@ -1003,3 +1003,49 @@ button.danger:hover:not(:disabled) {
   #keyboardHelpBtn { display:none !important; }
 }
 @media (max-width:480px) { .header-actions { gap:.2rem; } }
+
+/* v3.6: управление — слегка выделенная нижняя секция внутри карточки. */
+.status { padding-left: 0; padding-right: 0; padding-bottom: 2.65rem; }
+.status > .timer-circle { flex: 0 0 auto; }
+.status > .controls {
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 1.35rem;
+  padding: .95rem 1rem 1.05rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: clamp(1rem, 5vw, 2.5rem);
+  background: rgba(var(--violet-rgb), .065);
+  border-top: 1px solid rgba(var(--violet-rgb), .13);
+}
+.status > .controls #startBtn { width: 68px; height: 68px; min-width: 68px; }
+.status > .controls #resetBtn,
+.status > .controls #skipBtn { width: 56px; height: 56px; min-width: 56px; }
+:root[data-theme^="light-"] .status > .controls {
+  background: rgba(var(--violet-rgb), .075);
+  border-top-color: rgba(var(--violet-rgb), .15);
+}
+@media (max-width: 560px) {
+  .status > .controls { margin-top: 1rem; padding: .8rem .7rem .95rem; gap: clamp(.8rem, 5vw, 1.5rem); }
+  .status > .controls #startBtn { width: 62px; height: 62px; min-width: 62px; }
+  .status > .controls #resetBtn,
+  .status > .controls #skipBtn { width: 52px; height: 52px; min-width: 52px; }
+}
+
+/* v3.7: общее время непосредственно над панелью кнопок. */
+.status { padding-bottom: 0; }
+.status > .meeting-progress {
+  position: static;
+  width: 100%;
+  margin: 1rem 0 0;
+  pointer-events: auto;
+}
+.status > .meeting-progress .meeting-progress-head {
+  padding-bottom: .65rem;
+}
+.status > .meeting-progress .meeting-progress-track {
+  height: 3px;
+}
+.status > .controls { margin-top: 0; }
+@media (max-width: 560px) { .status > .controls { margin-top: 0; } }

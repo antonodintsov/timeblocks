@@ -32,7 +32,10 @@
   update(initial);
   buttons.forEach(button => button.addEventListener('click', () => {
     const theme = button.dataset.themeChoice;
+    const previous = document.documentElement.dataset.theme || 'original';
+    if (theme === previous) return;
     update(theme);
     try { localStorage.setItem(key, theme); } catch (_) {}
+    window.ChronoAnalytics?.goal('theme_change', { theme });
   }));
 })();

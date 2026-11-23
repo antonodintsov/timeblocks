@@ -2,12 +2,19 @@
 (function () {
   'use strict';
   const ID = 114508897;
-  const validGoals = new Set(['meeting_start','meeting_pause','meeting_resume','meeting_complete','meeting_restart','block_skip','block_add','block_delete','config_import','config_export','config_reset','share_create']);
+  const validGoals = new Set(['meeting_start','meeting_pause','meeting_resume','meeting_complete','meeting_restart','block_skip','block_add','block_delete','config_import','config_export','config_reset','share_create','theme_change']);
   function send(name, params) {
     if (!validGoals.has(name)) return;
     const safe = {};
     for (const key of ['duration_seconds','planned_seconds','blocks_count']) {
       if (Number.isFinite(params?.[key])) safe[key] = Math.max(0, Math.min(86400, Math.round(params[key])));
+    }
+    if (name === 'theme_change') {
+      const themes = new Set(['original','ocean','emerald','sunset','light-violet','light-ocean','light-emerald','light-sunset']);
+      if (themes.has(params?.theme)) {
+        safe.theme = params.theme;
+        safe.theme_mode = params.theme.startsWith('light-') ? 'light' : 'dark';
+      }
     }
     if (typeof window.ym === 'function') window.ym(ID, 'reachGoal', name, safe);
   }
