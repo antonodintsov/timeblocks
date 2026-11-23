@@ -1056,12 +1056,9 @@ button.danger:hover:not(:disabled) {
   .status > .meeting-progress .meeting-progress-head { padding-inline: .75rem; }
 }
 
-/* v3.13: у «Следующий» только внешнее свечение, без заливки при наведении. */
+/* Управляющие кнопки «Рестарт» и «Следующий»: одинаковый hover,
+   исходный цвет границы сохраняется во всех палитрах. */
+.status > .controls #resetBtn:hover:not(:disabled),
 .status > .controls #skipBtn:hover:not(:disabled) {
-  background: var(--glass-strong);
-  box-shadow: 0 6px 20px rgba(var(--violet-rgb), .3);
+  border-color: rgba(var(--pink-rgb), 0.35);
 }
-
-/* v3.14: границы кнопок «Рестарт» и «Следующий» не меняются при наведении. */
-.status > .controls #resetBtn:hover:not(:disabled) { border-color: rgba(var(--pink-rgb), 0.35); }
-.status > .controls #skipBtn:hover:not(:disabled) { border-color: var(--border); }
