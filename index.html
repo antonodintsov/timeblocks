@@ -10,15 +10,42 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script>
+    try {
+      const theme = localStorage.getItem('chronoblock:theme');
+      if (['ocean','emerald','sunset','light-violet','light-ocean','light-emerald','light-sunset'].includes(theme)) document.documentElement.dataset.theme = theme;
+    } catch (_) {}
+  </script>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div class="app">
     <header class="app-header">
       <h1>⏱ Хроноблок</h1>
+      <div class="header-actions">
+        <div class="theme-menu" id="themeMenu">
+          <button id="themeMenuBtn" type="button" class="keyboard-help-btn theme-menu-btn" aria-label="Выбрать цветовую палитру" aria-expanded="false" aria-controls="themeMenuPanel" title="Цветовая палитра">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18h1.5a2.5 2.5 0 0 0 2-4 1.7 1.7 0 0 1 1.4-2.7H18A4 4 0 0 0 22 10.5C22 6.3 17.5 3 12 3Z"/><circle cx="7.5" cy="10" r="1"/><circle cx="11" cy="6.8" r="1"/><circle cx="16.5" cy="8.2" r="1"/><circle cx="7.7" cy="14.4" r="1"/></svg>
+          </button>
+          <div id="themeMenuPanel" class="theme-menu-panel" hidden>
+    <div class="theme-picker" role="group" aria-label="Цветовая палитра">
+      <span class="theme-picker-label">Тёмные</span>
+      <button type="button" data-theme-choice="original" aria-pressed="true"><span class="theme-swatch" style="--swatch-a:#8b5cf6;--swatch-b:#ec4899"></span>Оригинал</button>
+      <button type="button" data-theme-choice="ocean" aria-pressed="false"><span class="theme-swatch" style="--swatch-a:#3b82f6;--swatch-b:#06b6d4"></span>Океан</button>
+      <button type="button" data-theme-choice="emerald" aria-pressed="false"><span class="theme-swatch" style="--swatch-a:#10b981;--swatch-b:#84cc16"></span>Изумруд</button>
+      <button type="button" data-theme-choice="sunset" aria-pressed="false"><span class="theme-swatch" style="--swatch-a:#f97316;--swatch-b:#fb7185"></span>Закат</button> 
+      <span class="theme-picker-label theme-picker-break">Светлые</span>
+      <button type="button" data-theme-choice="light-violet" aria-pressed="false"><span class="theme-swatch" style="--swatch-a:#7550d7;--swatch-b:#d53888"></span>Лаванда</button>
+      <button type="button" data-theme-choice="light-ocean" aria-pressed="false"><span class="theme-swatch" style="--swatch-a:#186ac0;--swatch-b:#078eac"></span>Небо</button>
+      <button type="button" data-theme-choice="light-emerald" aria-pressed="false"><span class="theme-swatch" style="--swatch-a:#087e5c;--swatch-b:#548a10"></span>Мята</button>
+      <button type="button" data-theme-choice="light-sunset" aria-pressed="false"><span class="theme-swatch" style="--swatch-a:#bf591a;--swatch-b:#c84663"></span>Персик</button>
+    </div>
+          </div>
+        </div>
       <button id="keyboardHelpBtn" type="button" class="keyboard-help-btn" aria-label="Горячие клавиши" title="Горячие клавиши">
         <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M6 9h1m3 0h1m3 0h1m3 0h1M6 12h1m3 0h1m3 0h1m3 0h1M8 16h8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
       </button>
+      </div>
     </header>
 
     <!-- Таймер -->
@@ -27,9 +54,9 @@
         <svg viewBox="0 0 220 220" aria-hidden="true">
           <defs>
             <linearGradient id="ringGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%"   stop-color="#8b5cf6"/>
-              <stop offset="50%"  stop-color="#ec4899"/>
-              <stop offset="100%" stop-color="#06b6d4"/>
+              <stop offset="0%"   style="stop-color:var(--violet)"/>
+              <stop offset="50%"  style="stop-color:var(--pink)"/>
+              <stop offset="100%" style="stop-color:var(--cyan)"/>
             </linearGradient>
             <linearGradient id="ringOverGradient" x1="0%" y1="0%" x2="100%" y2="100%">
               <stop offset="0%"   stop-color="#f43f5e"/>
@@ -93,6 +120,7 @@
         <button id="shareBtn" type="button" hidden aria-label="Поделиться конфигурацией" title="Поделиться конфигурацией"><span class="compact-btn-icon" aria-hidden="true">↗</span><span class="compact-btn-label">Поделиться</span></button>
       </div>
     </div>
+
   </div>
 
   <script src="analytics.js"></script>
@@ -100,5 +128,6 @@
   <script src="config.js"></script>
   <script src="ui.js"></script>
   <script src="script.js"></script>
+  <script src="theme.js"></script>
 </body>
 </html>
