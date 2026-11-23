@@ -1055,3 +1055,10 @@ button.danger:hover:not(:disabled) {
 @media (max-width: 480px) {
   .status > .meeting-progress .meeting-progress-head { padding-inline: .75rem; }
 }
+
+/* v3.13: у «Следующий» только внешнее свечение, без заливки при наведении. */
+.status > .controls #skipBtn:hover:not(:disabled) {
+  background: var(--glass-strong);
+  border-color: rgba(var(--violet-rgb), .55);
+  box-shadow: 0 6px 20px rgba(var(--violet-rgb), .3);
+}
