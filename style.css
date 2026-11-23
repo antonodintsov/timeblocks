@@ -1038,7 +1038,7 @@ button.danger:hover:not(:disabled) {
 .status > .meeting-progress {
   position: static;
   width: 100%;
-  margin: 1rem 0 0;
+  margin: .5rem 0 0;
   pointer-events: auto;
 }
 .status > .meeting-progress .meeting-progress-head {
