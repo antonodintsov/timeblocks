@@ -1049,3 +1049,9 @@ button.danger:hover:not(:disabled) {
 }
 .status > .controls { margin-top: 0; }
 @media (max-width: 560px) { .status > .controls { margin-top: 0; } }
+
+/* v3.10: счётчики общего времени ближе к краям, с симметричными отступами. */
+.status > .meeting-progress .meeting-progress-head { padding-inline: 1rem; }
+@media (max-width: 480px) {
+  .status > .meeting-progress .meeting-progress-head { padding-inline: .75rem; }
+}
