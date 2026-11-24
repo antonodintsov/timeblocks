@@ -356,8 +356,8 @@
     const block = activeBlocks[0];
     if (isOvertime) {
       const elapsed = settings.overtimeSeconds - overtimeRemainingSec;
-      setTaskLabel(`⚠ ${block.name}`);
-      timerDisplayEl.textContent = `+${formatTime(elapsed)}`;
+      setTaskLabel(block.name);
+      timerDisplayEl.textContent = formatTime(elapsed);
       setRingFraction(1);
     } else {
       setTaskLabel(block.name);

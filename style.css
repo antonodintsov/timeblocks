@@ -1093,3 +1093,30 @@ button.danger:hover:not(:disabled) {
   box-sizing:border-box;
   box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);
 }
+
+/* Индикатор овертайма вне потока: цифры и название не смещаются. */
+.overtime-indicator {
+  display: none;
+  position: absolute;
+  top: 15%;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 1.4rem;
+  line-height: 1;
+  color: #fb7185;
+  pointer-events: none;
+}
+.timer-circle.overtime .overtime-indicator { display: block; }
+
+/* Знак овертайма не участвует в расчёте ширины цифр. */
+#timerDisplay { position: relative; }
+#timerDisplay.overtime::before {
+  content: "+";
+  position: absolute;
+  right: calc(100% + .15em);
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: .45em;
+  line-height: 1;
+  pointer-events: none;
+}
