@@ -1095,14 +1095,14 @@ button.danger:hover:not(:disabled) {
 }
 
 /* Индикатор овертайма вне потока: цифры и название не смещаются. */
-.overtime-indicator {
+.timer-circle .overtime-indicator {
   display: none;
   position: absolute;
   top: 15%;
   left: 50%;
   transform: translateX(-50%);
-  font-size: 1.4rem;
-  line-height: 1;
+  width: 1.4rem;
+  height: 1.4rem;
   color: #fb7185;
   pointer-events: none;
 }
